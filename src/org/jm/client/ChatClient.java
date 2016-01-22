@@ -14,6 +14,11 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.actor.Props;
 
+/**
+ * Console Chat client
+ * @author jmgarcia
+ *
+ */
 public class ChatClient {
 	
 	private ActorSystem clientActorSystem;
