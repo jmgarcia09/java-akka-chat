@@ -1,9 +1,9 @@
 package org.jm.actors.client;
 
 
-import org.jm.actor.messages.ChatMessage;
-import org.jm.actor.messages.Login;
-import org.jm.actor.messages.User;
+import org.jm.actors.messages.ChatMessage;
+import org.jm.actors.messages.Login;
+import org.jm.actors.messages.User;
 
 import akka.actor.ActorSelection;
 import akka.actor.UntypedActor;

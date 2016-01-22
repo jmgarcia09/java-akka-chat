@@ -4,8 +4,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Scanner;
 
-import org.jm.actor.messages.ChatMessage;
 import org.jm.actors.client.ClientActor;
+import org.jm.actors.messages.ChatMessage;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;

@@ -3,9 +3,9 @@ package org.jm.actors.server;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.jm.actor.messages.ChatMessage;
-import org.jm.actor.messages.Login;
-import org.jm.actor.messages.User;
+import org.jm.actors.messages.ChatMessage;
+import org.jm.actors.messages.Login;
+import org.jm.actors.messages.User;
 
 import akka.actor.ActorRef;
 import akka.actor.UntypedActor;

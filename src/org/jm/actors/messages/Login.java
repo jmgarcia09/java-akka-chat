@@ -1,4 +1,4 @@
-package org.jm.actor.messages;
+package org.jm.actors.messages;
 
 import java.io.Serializable;
 
