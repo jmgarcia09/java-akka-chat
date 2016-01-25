@@ -3,7 +3,7 @@ package org.jm.chat;
 import org.jm.client.ChatClient;
 import org.jm.server.ChatServer;
 
-public class StartServer {
+public class StartChat {
 	
 	/**
 	 * Start Chat Server
@@ -47,8 +47,14 @@ public class StartServer {
 					port = Integer.parseInt(args[2]);
 				
 				
-				ChatClient client = new ChatClient(host, port);
-				client.startClient();
+				ChatClient client = new ChatClient(host, port,"clientActor");
+				client.loadClient();
+				
+				ClientChatTest test = new ClientChatTest(client);
+				
+				test.login();
+				
+				test.sendMessage();
 				
 				
 			}

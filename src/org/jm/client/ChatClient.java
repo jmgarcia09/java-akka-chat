@@ -8,6 +8,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.jm.actors.client.ClientActor;
 import org.jm.actors.messages.ChatMessage;
+import org.jm.actors.messages.Login;
 import org.jm.actors.messages.User;
 
 import com.typesafe.config.Config;
@@ -26,8 +27,11 @@ import scala.concurrent.duration.Duration;
  */
 public class ChatClient {
 	
-	private ActorSystem clientActorSystem;
-	private Scanner scannerEntry;
+	private static ActorSystem clientActorSystem;
+	private ActorRef clientActor;
+	private ChatMessage chatMessage;
+	private Inbox clientInbox;
+	private String actorName;
 	private String userName;
 	private String host;
 	private int port;
@@ -52,15 +56,18 @@ public class ChatClient {
 		this.port = port;
 	}
 	
-	public ChatClient(String host, int port) {
+	public ChatClient(String host, int port, String actorName) {
 		this.host = host;
 		this.port = port;
+		this.actorName = actorName;
 	
 	}
 	
-	public void startClient(){
+	public void loadClient(){
 		
-		boolean isConnected = false;
+		if(clientActorSystem != null){
+			return;
+		}
 		
 		String hostname = null;
 		try {
@@ -69,47 +76,71 @@ public class ChatClient {
 			
 		}
 		
-		Config serverConfig = ConfigFactory.parseString("akka.remote.netty.tcp.port = 0");
-		serverConfig = serverConfig.withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname = " + hostname));
-		scannerEntry = new Scanner(System.in);
+		Config clientConfig = ConfigFactory.parseString("akka.remote.netty.tcp.port = 0");
+		clientConfig = clientConfig.withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname = " + hostname));
 		
 		
-		clientActorSystem = ActorSystem.create("clientActorSystem",serverConfig.withFallback(ConfigFactory.load("common")));
-		ActorRef clientActor = clientActorSystem.actorOf(Props.create(ClientActor.class,
-				host,port,userName, isConnected), "clientActor");
+		clientActorSystem = ActorSystem.create("clientActorSystem",clientConfig.withFallback(ConfigFactory.load("common")));
 		
-		Inbox inbox = Inbox.create(clientActorSystem);
+		setClientInbox(Inbox.create(clientActorSystem));
+	}
+	
+	
+	public Login connectClient(String userName){
+		
+		Login login = null;
+		
+		if(clientActor == null){
+			clientActor = clientActorSystem.actorOf(Props.create(ClientActor.class,
+					host,port), actorName);
+		}
+		
+		//Send user to log server.
+		clientInbox.send(clientActor, User.createUser(userName));
 		
 		
-		while(!isConnected){
-			System.out.println("Chat user name: ");
-			userName = scannerEntry.next();
+		//get login response from server.
+		try {
+			login = (Login) clientInbox.receive(Duration.create(15, TimeUnit.SECONDS));
 			
-			inbox.send(clientActor, User.createUser(userName));
-			try {
-				isConnected = (boolean) inbox.receive(Duration.create(2, TimeUnit.SECONDS));
-				if(!isConnected){
-					Thread.sleep(5000);
-				}
-				
-			} catch (InterruptedException | TimeoutException e) {
-				System.err.println(e);
+			if(login.isLogged()){
+				chatMessage = ChatMessage.createMessageSender(userName);
+				chatMessage.setToServer(true);
 			}
-		}
-		
-		boolean continueSend = true;
-		String message = "";
-		ChatMessage clientMessage = ChatMessage.createMessageSender(userName);
-		clientMessage.setToServer(true);
-		
-		System.out.println("Start sending messages: ");
-		while(continueSend){
+		} catch (TimeoutException | ClassCastException e ) {
+			System.out.println(e);
+			login = new Login(false);
+			login.setError("Connection to server timeout. Try again later.");
 			
-			message = scannerEntry.next();			
-			clientMessage.setMessage(message);
-			clientActor.tell(clientMessage, ActorRef.noSender());
 		}
+		 
+		return login;
+	}
+	
+	
+	public void sendMessage(String message){
+		
+		chatMessage.setMessage(message);
+		
+		
+		clientActor.tell(chatMessage, ActorRef.noSender());
 		
 	}
 	
+	public Inbox getClientInbox() {
+		return clientInbox;
+	}
+	public void setClientInbox(Inbox clientInbox) {
+		this.clientInbox = clientInbox;
+	}
+	public String getActorName() {
+		return actorName;
+	}
+	public void setActorName(String actorName) {
+		this.actorName = actorName;
+	}
+	
+	public ActorSystem getClientActorSystem(){
+		return clientActorSystem;
+	}
 }

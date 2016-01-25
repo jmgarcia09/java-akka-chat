@@ -32,9 +32,9 @@ public class ServerActor extends UntypedActor {
 			}else{
 				login = new Login(true);
 				userList.put(user.getUserName(), getSender());
+				System.out.println("User connected to chat: " + user.getUserName());
 			}
 			
-			System.out.println("User connected to chat: " + user.getUserName());
 			getSender().tell(login, getSelf());
 			
 		}else if (message instanceof ChatMessage) {
@@ -43,6 +43,13 @@ public class ServerActor extends UntypedActor {
 					chatMessage.getUser()  + "] Message: [" +
 					chatMessage.getMessage()+"]");
 			
+			if(chatMessage.getMessage().startsWith("/disconnect")){
+				chatMessage.setMessage("User: " + chatMessage.getUser() + " disconnected from server.");
+				userList.remove(chatMessage.getUser());
+				System.out.println(chatMessage.getMessage());
+			}
+			
+			
 			chatMessage.setToServer(false);
 			
 			for(String user: userList.keySet()){
@@ -50,10 +57,13 @@ public class ServerActor extends UntypedActor {
 					userList.get(user).tell(chatMessage, getSelf());
 				}
 			}
+		}else{
+			System.out.println("Se recibio un mensaje del tipo :" + message.toString() );
 		}
 		
 		
 	}
+	
 	
 	@Override
 	public void aroundPreStart() {

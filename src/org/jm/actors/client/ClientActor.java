@@ -17,9 +17,13 @@ import akka.actor.UntypedActor;
 public class ClientActor extends UntypedActor{
 
 	/**
-	 * Pattern to connect to server actor. need host and port.
+	 * <p>Pattern to connect to server actor. need actor server name, host and port to server chat.</p>
+	 * Example: 
+	 * <p>Server actor name : ChatServerSystem</p>
+	 * <p>Host				: 127.0.0.1</p>
+	 * <p>Port				: 1523</p>
 	 */
-	private static String REMOTE_PATTERN = "akka.tcp://ChatServerSystem@%s:%d/user/serverActor";
+	private static String REMOTE_PATTERN = "akka.tcp://%s@%s:%d/user/serverActor";
 	
 	/**
 	 * Actor Selection to server actor.
@@ -41,22 +45,24 @@ public class ClientActor extends UntypedActor{
 	 */
 	private ActorRef inboxActor;
 	
+	private String userName;
+	
 	/**
 	 * Constructor of ClientActor.
+	 * @param actorServerName
 	 * @param host
 	 * @param port
-	 * @param userName
-	 * @throws ExceptionInInitializerError - If host is empty or cannot create a User.
+	 * @throws ExceptionInInitializerError - If host is empty.
 	 */
-	public ClientActor(String host, int port,String userName, boolean connected) throws ExceptionInInitializerError {
+	public ClientActor(String host, int port) throws ExceptionInInitializerError {
 		if(host == null || host.isEmpty()){
 			throw new ExceptionInInitializerError("Cannot start chat to unknown server.");
 		}
-		serverRemotePath = String.format(REMOTE_PATTERN, host,port);
-		server = getContext().actorSelection(serverRemotePath);
 		
-		System.out.println("Se creo actor cliente");
-		this.connected = connected;
+		serverRemotePath = String.format(REMOTE_PATTERN,
+				getContext().system().settings().config().getString("chat.server.actor.name"),
+				host,port);
+		server = getContext().actorSelection(serverRemotePath);
 	}
 	
 	
@@ -67,27 +73,44 @@ public class ClientActor extends UntypedActor{
 			if(loginResponse.isLogged()){
 				System.out.println("Connection Established with server.");
 				connected = true;
-				inboxActor.tell(connected, getSelf());
 			}else{
 				System.out.println("Error trying to log. ");
 				connected = false;
 			}
-		}else if(message instanceof User){
 			
+			inboxActor.tell(loginResponse, ActorRef.noSender());
+		}else if(message instanceof User){
+			userName = ((User) message).getUserName();
 			server.tell(message, getSelf());
 			inboxActor = getSender();
 		}else if (message instanceof ChatMessage){
 			ChatMessage chatMessage = (ChatMessage) message;
 			
-			System.out.println(chatMessage.getUser() + "--->" + chatMessage.getMessage());
+			if(chatMessage.getMessage().startsWith("/disconnect")){
+				getContext().stop(getSelf());
+				return;
+			}
+			
+			inboxActor.tell(message, ActorRef.noSender());
 			
 			if(chatMessage.isToServer()){
 				server.tell(message, getSelf());
 			}
 			
+		}else{
+			System.out.println("Se recibio mensaje del tipo " + message.toString());
 		}
 		
 		
+		
+	}
+	
+	@Override
+	public void aroundPostStop() {
+		super.aroundPostStop();
+		ChatMessage message = ChatMessage.createMessageSender(userName);
+		message.setMessage("/disconnect");
+		server.tell(message, getSelf());
 		
 	}
 
