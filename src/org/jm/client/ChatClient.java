@@ -3,16 +3,21 @@ package org.jm.client;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.jm.actors.client.ClientActor;
 import org.jm.actors.messages.ChatMessage;
+import org.jm.actors.messages.User;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.actor.Inbox;
 import akka.actor.Props;
+import scala.concurrent.duration.Duration;
 
 /**
  * Console Chat client
@@ -55,6 +60,8 @@ public class ChatClient {
 	
 	public void startClient(){
 		
+		boolean isConnected = false;
+		
 		String hostname = null;
 		try {
 			hostname = InetAddress.getLocalHost().getHostName();
@@ -65,23 +72,42 @@ public class ChatClient {
 		Config serverConfig = ConfigFactory.parseString("akka.remote.netty.tcp.port = 0");
 		serverConfig = serverConfig.withFallback(ConfigFactory.parseString("akka.remote.netty.tcp.hostname = " + hostname));
 		scannerEntry = new Scanner(System.in);
-		System.out.println("Chat user name: ");
-		userName = scannerEntry.next();
+		
+		
 		clientActorSystem = ActorSystem.create("clientActorSystem",serverConfig.withFallback(ConfigFactory.load("common")));
 		ActorRef clientActor = clientActorSystem.actorOf(Props.create(ClientActor.class,
-				host,port,userName), "clientActor");
+				host,port,userName, isConnected), "clientActor");
+		
+		Inbox inbox = Inbox.create(clientActorSystem);
+		
+		
+		while(!isConnected){
+			System.out.println("Chat user name: ");
+			userName = scannerEntry.next();
+			
+			inbox.send(clientActor, User.createUser(userName));
+			try {
+				isConnected = (boolean) inbox.receive(Duration.create(2, TimeUnit.SECONDS));
+				if(!isConnected){
+					Thread.sleep(5000);
+				}
+				
+			} catch (InterruptedException | TimeoutException e) {
+				System.err.println(e);
+			}
+		}
 		
 		boolean continueSend = true;
 		String message = "";
 		ChatMessage clientMessage = ChatMessage.createMessageSender(userName);
 		clientMessage.setToServer(true);
+		
+		System.out.println("Start sending messages: ");
 		while(continueSend){
 			
-			System.out.print("Message: ");
 			message = scannerEntry.next();			
 			clientMessage.setMessage(message);
 			clientActor.tell(clientMessage, ActorRef.noSender());
-			System.out.println("----------------------------------");
 		}
 		
 	}

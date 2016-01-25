@@ -5,6 +5,7 @@ import org.jm.actors.messages.ChatMessage;
 import org.jm.actors.messages.Login;
 import org.jm.actors.messages.User;
 
+import akka.actor.ActorRef;
 import akka.actor.ActorSelection;
 import akka.actor.UntypedActor;
 
@@ -35,6 +36,10 @@ public class ClientActor extends UntypedActor{
 	 */
 	private boolean connected;
 	
+	/**
+	 * 
+	 */
+	private ActorRef inboxActor;
 	
 	/**
 	 * Constructor of ClientActor.
@@ -43,15 +48,15 @@ public class ClientActor extends UntypedActor{
 	 * @param userName
 	 * @throws ExceptionInInitializerError - If host is empty or cannot create a User.
 	 */
-	public ClientActor(String host, int port,String userName) throws ExceptionInInitializerError {
+	public ClientActor(String host, int port,String userName, boolean connected) throws ExceptionInInitializerError {
 		if(host == null || host.isEmpty()){
 			throw new ExceptionInInitializerError("Cannot start chat to unknown server.");
 		}
 		serverRemotePath = String.format(REMOTE_PATTERN, host,port);
 		server = getContext().actorSelection(serverRemotePath);
 		
-		server.tell(User.createUser(userName), getSelf());
-		setConnected(false);
+		System.out.println("Se creo actor cliente");
+		this.connected = connected;
 	}
 	
 	
@@ -62,10 +67,15 @@ public class ClientActor extends UntypedActor{
 			if(loginResponse.isLogged()){
 				System.out.println("Connection Established with server.");
 				connected = true;
+				inboxActor.tell(connected, getSelf());
 			}else{
 				System.out.println("Error trying to log. ");
 				connected = false;
 			}
+		}else if(message instanceof User){
+			
+			server.tell(message, getSelf());
+			inboxActor = getSender();
 		}else if (message instanceof ChatMessage){
 			ChatMessage chatMessage = (ChatMessage) message;
 			

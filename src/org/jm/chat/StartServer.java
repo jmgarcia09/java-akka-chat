@@ -7,7 +7,11 @@ public class StartServer {
 	
 	/**
 	 * Start Chat Server
-	 * @param args - 1 = Mode (Server | Client). 2 = Host to start server 3 = Port to start server. 4 = Extra config needed for server.
+	 * @param args
+	 * <p>1 = Mode (Server | Client).</p> 
+	 * <p>2 = Host to start/connect to server.</p>
+	 * <p>3 = Port to start server.</p>
+	 * <p>4 = Extra config needed for server.</p>
 	 */
 	public static void main(String[] args) {
 		
